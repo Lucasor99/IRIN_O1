@@ -44,7 +44,7 @@ using namespace std;
 #define STOP_PRIORITY 		4
 
 
-#define PROXIMITY_THRESHOLD 0.6
+#define PROXIMITY_THRESHOLD 0.55
 #define BATTERY_THRESHOLD 0.3
 
 #define SPEED 300.0
@@ -288,7 +288,7 @@ void CIri1Controller::Stop ( unsigned int un_priority )
 {
   /* Direction Angle 0.0 and always active. We set its vector intensity to 0.5 if used */
 	m_fActivationTable[un_priority][0] = 0.0;
-	m_fActivationTable[un_priority][1] = 0.0;
+	m_fActivationTable[un_priority][1] = 0.5;
 	m_fActivationTable[un_priority][2] = 1.0;
 
 	m_fLeftSpeed = 0.0;
@@ -337,8 +337,8 @@ void CIri1Controller::GoTable ( unsigned int un_priority )
 	vRepelent.y = 0.0;
 
 	/* Calc vector Sum */
-	for ( int i = 0 ; i < m_seProx->GetNumberOfInputs() ; i ++ )
-	{
+	for ( int i = 0 ; i < m_seProx->GetNumberOfInputs() ; i ++ ){
+
 		vRepelent.x += bluelight[i] * cos ( lightBlueDirections[i] );
 		vRepelent.y += bluelight[i] * sin ( lightBlueDirections[i] );
 
@@ -369,7 +369,12 @@ void CIri1Controller::GoTable ( unsigned int un_priority )
 		m_fActivationTable[un_priority][2] = 1.0;
 	}	
 
-	if ( fMaxLight > 0.9 ){	
+	double sumBlueLight;
+	for ( int i = 0 ; i < 8 ; i ++ ){
+		sumBlueLight += bluelight[i];
+	}
+
+	if ( sumBlueLight > 1.7 ){	
 
 		m_seBlueLight->SwitchNearestLight(0);
 	}	
