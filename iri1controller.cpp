@@ -119,11 +119,6 @@ void CIri1Controller::SimulationStep(unsigned n_step_number, double f_time, doub
 	/* Set Speed to wheels */
 	m_acWheels->SetSpeed(m_fLeftSpeed, m_fRightSpeed);
 
-	/* Leer Sensores de Luz Azul*/
-	double* bluelight = m_seBlueLight->GetSensorReading(m_pcEpuck);
-
-	
-	m_seBlueLight->SwitchNearestLight(0);
 
 	if (m_nWriteToFile ) 
 	{
@@ -287,16 +282,18 @@ void CIri1Controller::GoTable ( unsigned int un_priority )
 	/* Leer Battery Sensores */
 	double* battery = m_seBattery->GetSensorReading(m_pcEpuck);
 
-	/* Leer Sensores de Luz */
-	double* lightBlue = m_seBlueLight->GetSensorReading(m_pcEpuck);
+	/* Leer Sensores de Luz Azul*/
+	double* bluelight = m_seBlueLight->GetSensorReading(m_pcEpuck);
+
 
 	double fMaxLight = 0.0;
 	const double* lightBlueDirections = m_seBlueLight->GetSensorDirections();
 
+
 	printf("Light Blue Sensor Value: ");
 	for ( int i = 0 ; i < m_seBlueLight->GetNumberOfInputs() ; i++)
 	{
-		printf("%2f ", lightBlue[i]);
+		printf("%2f ", bluelight[i]);
 	}
 	printf("\n");
 
@@ -308,11 +305,11 @@ void CIri1Controller::GoTable ( unsigned int un_priority )
 	/* Calc vector Sum */
 	for ( int i = 0 ; i < m_seProx->GetNumberOfInputs() ; i ++ )
 	{
-		vRepelent.x += lightBlue[i] * cos ( lightBlueDirections[i] );
-		vRepelent.y += lightBlue[i] * sin ( lightBlueDirections[i] );
+		vRepelent.x += bluelight[i] * cos ( lightBlueDirections[i] );
+		vRepelent.y += bluelight[i] * sin ( lightBlueDirections[i] );
 
-		if ( lightBlue[i] > fMaxLight )
-			fMaxLight = lightBlue[i];
+		if ( bluelight[i] > fMaxLight )
+			fMaxLight = bluelight[i];
 	}
 	printf("%2f ", fMaxLight);
 	printf("\n");
@@ -338,11 +335,17 @@ void CIri1Controller::GoTable ( unsigned int un_priority )
 		m_fActivationTable[un_priority][2] = 1.0;
 	}	
 
+	if ( fMaxLight > 0.9 ){	
+
+		m_seBlueLight->SwitchNearestLight(0);
+	}	
+
+
 	if (m_nWriteToFile ) 
 	{
 		/* INIT WRITE TO FILE */
 		FILE* fileOutput = fopen("outputFiles/tableOutput", "a");
-		fprintf(fileOutput, "%2.4f %2.4f %2.4f %2.4f %2.4f %2.4f %2.4f %2.4f %2.4f %2.4f ", m_fTime, battery[0], lightBlue[0], lightBlue[1], lightBlue[2], lightBlue[3], lightBlue[4], lightBlue[5], lightBlue[6], lightBlue[7]);
+		fprintf(fileOutput, "%2.4f %2.4f %2.4f %2.4f %2.4f %2.4f %2.4f %2.4f %2.4f %2.4f ", m_fTime, battery[0], bluelight[0], bluelight[1], bluelight[2], bluelight[3], bluelight[4], bluelight[5], bluelight[6], bluelight[7]);
 		fprintf(fileOutput, "%2.4f %2.4f %2.4f\n",m_fActivationTable[un_priority][2], m_fActivationTable[un_priority][0], m_fActivationTable[un_priority][1]);
 		fclose(fileOutput);
 		/* END WRITE TO FILE */
