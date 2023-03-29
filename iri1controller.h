@@ -45,6 +45,7 @@ private:
 		double 		m_fRightSpeed;
 		double**	m_fActivationTable;
 		double 		m_fTime;
+		double		fBattToForageInhibitor;
 
 		int m_nWriteToFile;
 		/* Functions */
@@ -55,6 +56,8 @@ private:
 		void ObstacleAvoidance ( unsigned int un_priority );
 		void GoLoad ( unsigned int un_priority );
 		void GoTable ( unsigned int un_priority );
+		void Forage ( unsigned int un_priority );
+		void Stop ( unsigned int un_priority );
 };
 
 #endif

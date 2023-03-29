@@ -35,14 +35,16 @@ using namespace std;
 /******************************************************************************/
 /******************************************************************************/
 
-#define BEHAVIORS	3
+#define BEHAVIORS	5
 
 #define AVOID_PRIORITY 		0
-#define TABLE_PRIORITY		1
-#define RELOAD_PRIORITY 	2
+#define RELOAD_PRIORITY 	1
+#define FORAGE_PRIORITY		2
+#define TABLE_PRIORITY		3
+#define STOP_PRIORITY 		4
 
 
-#define PROXIMITY_THRESHOLD 0.5
+#define PROXIMITY_THRESHOLD 0.6
 #define BATTERY_THRESHOLD 0.3
 
 #define SPEED 300.0
@@ -79,6 +81,8 @@ CIri1Controller::CIri1Controller (const char* pch_name, CEpuck* pc_epuck, int n_
 	/* Initilize Variables */
 	m_fLeftSpeed = 0.0;
 	m_fRightSpeed = 0.0;
+
+	fBattToForageInhibitor = 1.0;
 
 
 	/* Create TABLE for the COORDINATOR */
@@ -149,8 +153,10 @@ void CIri1Controller::ExecuteBehaviors ( void )
 	m_pcEpuck->SetAllColoredLeds(	LED_COLOR_BLACK);
 	
 	ObstacleAvoidance ( AVOID_PRIORITY );
-  GoLoad ( RELOAD_PRIORITY );
+  	GoLoad ( RELOAD_PRIORITY );	
+	Forage( FORAGE_PRIORITY );
 	GoTable ( TABLE_PRIORITY );
+	Stop( STOP_PRIORITY );
 }
 
 /******************************************************************************/
@@ -277,6 +283,34 @@ void CIri1Controller::ObstacleAvoidance ( unsigned int un_priority )
 /******************************************************************************/
 /******************************************************************************/
 
+
+void CIri1Controller::Stop ( unsigned int un_priority )
+{
+  /* Direction Angle 0.0 and always active. We set its vector intensity to 0.5 if used */
+	m_fActivationTable[un_priority][0] = 0.0;
+	m_fActivationTable[un_priority][1] = 0.0;
+	m_fActivationTable[un_priority][2] = 1.0;
+
+	m_fLeftSpeed = 0.0;
+	m_fRightSpeed = 0.0;
+
+	//No para porque el coordinador mantiene el movimiento
+
+	if (m_nWriteToFile ) 
+	{
+		/* INIT: WRITE TO FILES */
+		/* Write level of competence ouputs */
+		FILE* fileOutput = fopen("outputFiles/navigateOutput", "a");
+		fprintf(fileOutput,"%2.4f %2.4f %2.4f %2.4f \n", m_fTime, m_fActivationTable[un_priority][2], m_fActivationTable[un_priority][0], m_fActivationTable[un_priority][1]);
+		fclose(fileOutput);
+		/* END WRITE TO FILES */
+	}
+
+}
+		
+/******************************************************************************/
+/******************************************************************************/
+
 void CIri1Controller::GoTable ( unsigned int un_priority )
 {
 	/* Leer Battery Sensores */
@@ -399,19 +433,22 @@ void CIri1Controller::GoLoad ( unsigned int un_priority )
 
 
   m_fActivationTable[un_priority][0] = fRepelent;
-  m_fActivationTable[un_priority][1] = 0.2; //fMaxLight;
+  m_fActivationTable[un_priority][1] = fMaxLight; //0.2;
 
 	/* If battery below a BATTERY_THRESHOLD */
 	if ( battery[0] < BATTERY_THRESHOLD )
 	{
+		/* Inibit Forage */
+		fBattToForageInhibitor = 0.0;
+
 		/* Set Leds to RED */
 		m_pcEpuck->SetAllColoredLeds(	LED_COLOR_RED);
 
-		 m_fActivationTable[un_priority][0] = fRepelent;
-	}	
+		 //m_fActivationTable[un_priority][0] = fRepelent;
+		
 		/* Mark behavior as active */
 		m_fActivationTable[un_priority][2] = 1.0;
-		
+	}
 
 	if (m_nWriteToFile ) 
 	{
@@ -422,4 +459,69 @@ void CIri1Controller::GoLoad ( unsigned int un_priority )
 		fclose(fileOutput);
 		/* END WRITE TO FILE */
 	}
+	
+}
+
+/******************************************************************************/
+/******************************************************************************/
+
+void CIri1Controller::Forage ( unsigned int un_priority )
+{
+	/* Leer Sensores de Suelo Memory */
+	double* groundMemory = m_seGroundMemory->GetSensorReading(m_pcEpuck);
+	
+	/* Leer Sensores de Luz */
+	double* light = m_seLight->GetSensorReading(m_pcEpuck);
+	
+	double fMaxLight = 0.0;
+	const double* lightDirections = m_seLight->GetSensorDirections();
+
+  /* We call vRepelent to go similar to Obstacle Avoidance, although it is an aproaching vector */
+	dVector2 vRepelent;
+	vRepelent.x = 0.0;
+	vRepelent.y = 0.0;
+
+	/* Calc vector Sum */
+	for ( int i = 0 ; i < m_seProx->GetNumberOfInputs() ; i ++ )
+	{
+		vRepelent.x += light[i] * cos ( lightDirections[i] );
+		vRepelent.y += light[i] * sin ( lightDirections[i] );
+
+		if ( light[i] > fMaxLight )
+			fMaxLight = light[i];
+	}
+	
+	/* Calc pointing angle */
+	float fRepelent = atan2(vRepelent.y, vRepelent.x);
+	/* Create repelent angle */
+	//fRepelent -= M_PI;
+	
+  /* Normalize angle */
+	while ( fRepelent > M_PI ) fRepelent -= 2 * M_PI;
+	while ( fRepelent < -M_PI ) fRepelent += 2 * M_PI;
+
+  m_fActivationTable[un_priority][0] = fRepelent;
+  m_fActivationTable[un_priority][1] = fMaxLight;
+  
+  /* If with a virtual puck */
+	if ( ( groundMemory[0] * fBattToForageInhibitor ) == 1.0 )
+	{
+		/* Set Leds to BLUE */
+		m_pcEpuck->SetAllColoredLeds(	LED_COLOR_YELLOW);
+    /* Mark Behavior as active */
+    m_fActivationTable[un_priority][2] = 1.0;
+		
+	}
+
+	if (m_nWriteToFile ) 
+	{
+		/* INIT WRITE TO FILE */
+		FILE* fileOutput = fopen("outputFiles/forageOutput", "a");
+		fprintf(fileOutput, "%2.4f %2.4f %2.4f %2.4f %2.4f %2.4f %2.4f %2.4f %2.4f %2.4f %2.4f ", m_fTime, fBattToForageInhibitor, groundMemory[0], light[0], light[1], light[2], light[3], light[4], light[5], light[6], light[7]);
+		fprintf(fileOutput, "%2.4f %2.4f %2.4f\n",m_fActivationTable[un_priority][2], m_fActivationTable[un_priority][0], m_fActivationTable[un_priority][1]);
+		fclose(fileOutput);
+		/* END WRITE TO FILE */
+	}
+
+
 }
