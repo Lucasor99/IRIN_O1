@@ -32,6 +32,35 @@ BLUE LIGHT 6: Y POSITION									= -0.675
 NUMBER OF RED LIGHT OBJECTS 							= 0
 NUMBER OF GROUND AREA 										= 0
 
+%
+%GROUND AREA 1: X POSITION									= -0.825
+%GROUND AREA 1: Y POSITION									= 0.825
+%GROUND AREA 1 RADIUS											= 0.225
+%GROUND AREA 1 COLOR (0.0 Black, 0.5 Grey)	                    = 0.5
+%GROUND AREA 2: X POSITION									= -0.825
+%GROUND AREA 2: Y POSITION									= 0.075
+%GROUND AREA 2 RADIUS											= 0.225
+%GROUND AREA 2 COLOR (0.0 Black, 0.5 Grey)	                    = 0.5
+%GROUND AREA 3: X POSITION									= -0.825
+%GROUND AREA 3: Y POSITION									= -0.675
+%GROUND AREA 3 RADIUS											= 0.225
+%GROUND AREA 3 COLOR (0.0 Black, 0.5 Grey)	                    = 0.5
+%GROUND AREA 4: X POSITION									= 0.075
+%GROUND AREA 4: Y POSITION									= 0.825
+%GROUND AREA 4 RADIUS											= 0.225
+%GROUND AREA 4 COLOR (0.0 Black, 0.5 Grey)	                    = 0.5
+%GROUND AREA 5: X POSITION									= 0.075
+%GROUND AREA 5: Y POSITION									= 0.075
+%GROUND AREA 5 RADIUS											= 0.225
+%GROUND AREA 5 COLOR (0.0 Black, 0.5 Grey)	                    = 0.5
+%GROUND AREA 6: X POSITION									= 0.075
+%GROUND AREA 6: Y POSITION									= -0.675
+%GROUND AREA 6 RADIUS											= 0.225
+%GROUND AREA 6 COLOR (0.0 Black, 0.5 Grey)	                    = 0.5
+%GROUND AREA 7 X POSITION									= 1.0
+%GROUND AREA 7 Y POSITION									= -1.0
+%GROUND AREA 7 RADIUS											= 0.075
+%GROUND AREA 7 COLOR (0.0 Black, 0.5 Grey)                   	= 0.0
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
