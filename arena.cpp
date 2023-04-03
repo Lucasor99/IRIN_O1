@@ -301,7 +301,7 @@ void CArena::SimulationStep(unsigned int n_step_number,
 			(*blue_it)->Switch((*blue_it)->GetTiming(n_step_number));
 			blue_it++;
 		}
-
+		/*Encender una aleatoria*/
 		bool bAtLeastOneOn = false;
 		blue_it=m_vecBlueLightObject.begin();
 		for (blue_it = m_vecBlueLightObject.begin(); blue_it != m_vecBlueLightObject.end(); ++blue_it) {

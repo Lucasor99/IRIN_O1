@@ -45,7 +45,7 @@ using namespace std;
 
 
 #define PROXIMITY_THRESHOLD 0.55
-#define BATTERY_THRESHOLD 0.3
+#define BATTERY_THRESHOLD 0.5
 
 #define SPEED 300.0
 
@@ -288,11 +288,9 @@ void CIri1Controller::Stop ( unsigned int un_priority )
 {
   /* Direction Angle 0.0 and always active. We set its vector intensity to 0.5 if used */
 	m_fActivationTable[un_priority][0] = 0.0;
-	m_fActivationTable[un_priority][1] = 0.5;
+	m_fActivationTable[un_priority][1] = 0.0;
 	m_fActivationTable[un_priority][2] = 1.0;
 
-	m_fLeftSpeed = 0.0;
-	m_fRightSpeed = 0.0;
 
 	//No para porque el coordinador mantiene el movimiento
 
@@ -374,7 +372,7 @@ void CIri1Controller::GoTable ( unsigned int un_priority )
 		sumBlueLight += bluelight[i];
 	}
 
-	if ( sumBlueLight > 1.7 ){	
+	if ( sumBlueLight > 1.75 ){	
 
 		m_seBlueLight->SwitchNearestLight(0);
 	}	
