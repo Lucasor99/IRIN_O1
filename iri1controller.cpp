@@ -39,16 +39,16 @@ using namespace std;
 
 #define AVOID_PRIORITY 		0
 #define RELOAD_PRIORITY 	1
-#define FORAGE_PRIORITY		2
+#define REST_PRIORITY		2
 #define TABLE_PRIORITY		3
 #define STOP_PRIORITY 		4
 
 
 #define PROXIMITY_THRESHOLD 0.55
-#define BATTERY_THRESHOLD 0.5
+#define BATTERY_THRESHOLD 0.3
 
 #define SPEED 300.0
-
+#define STOP_SPEED 0
 
 /******************************************************************************/
 /******************************************************************************/
@@ -82,7 +82,9 @@ CIri1Controller::CIri1Controller (const char* pch_name, CEpuck* pc_epuck, int n_
 	m_fLeftSpeed = 0.0;
 	m_fRightSpeed = 0.0;
 
-	fBattToForageInhibitor = 1.0;
+	fBattToGoTableInhibitor = 1.0;
+	fStopInhibitor = 0.0;
+	num_Platos = 0;
 
 
 	/* Create TABLE for the COORDINATOR */
@@ -154,7 +156,7 @@ void CIri1Controller::ExecuteBehaviors ( void )
 	
 	ObstacleAvoidance ( AVOID_PRIORITY );
   	GoLoad ( RELOAD_PRIORITY );	
-	Forage( FORAGE_PRIORITY );
+	GoRest( REST_PRIORITY );
 	GoTable ( TABLE_PRIORITY );
 	Stop( STOP_PRIORITY );
 }
@@ -164,7 +166,7 @@ void CIri1Controller::ExecuteBehaviors ( void )
 
 void CIri1Controller::Coordinator ( void )
 {
-	int nBehavior;
+  int nBehavior;
   double fAngle = 0.0;
 
   int nActiveBehaviors = 0;
@@ -175,7 +177,7 @@ void CIri1Controller::Coordinator ( void )
   vAngle.y = 0.0;
   
   /* For every Behavior */
-	for ( nBehavior = 0 ; nBehavior < BEHAVIORS ; nBehavior++ )
+	for ( nBehavior = 0 ; nBehavior < BEHAVIORS -1 ; nBehavior++ )
 	{
     /* If behavior is active */
 		if ( m_fActivationTable[nBehavior][2] == 1.0 )
@@ -206,10 +208,19 @@ void CIri1Controller::Coordinator ( void )
   /*Calc Angular Speed */
   double fVAngular = fAngle;
 
-  m_fLeftSpeed  = fVLinear - fC1 * fVAngular;
-  m_fRightSpeed = fVLinear + fC1 * fVAngular;
+  if (m_fActivationTable[STOP_PRIORITY][2] == 1.0){
 
-  printf("LEFT: %2f, %2f\n", m_fLeftSpeed, m_fRightSpeed);
+	printf("Behavior %d: %2f\n", STOP_PRIORITY, m_fActivationTable[STOP_PRIORITY][0]);
+
+	m_fLeftSpeed  = m_fActivationTable[STOP_PRIORITY][0];
+  	m_fRightSpeed = m_fActivationTable[STOP_PRIORITY][1];
+  }else {
+	m_fLeftSpeed  = fVLinear - fC1 * fVAngular;
+  	m_fRightSpeed = fVLinear + fC1 * fVAngular;
+  }
+
+  //printf("Numero de Platos : %d \n", num_Platos);
+  printf("LEFT: %2f, RIGHT: %2f\n\n", m_fLeftSpeed, m_fRightSpeed);
 	if (m_nWriteToFile ) 
 	{
 		/* INIT: WRITE TO FILES */
@@ -237,6 +248,13 @@ void CIri1Controller::ObstacleAvoidance ( unsigned int un_priority )
 	dVector2 vRepelent;
 	vRepelent.x = 0.0;
 	vRepelent.y = 0.0;
+
+	printf("Prox Sensor Value: ");
+	for ( int i = 0 ; i < m_seProx->GetNumberOfInputs() ; i++)
+	{
+		printf("%2f ",prox[i]);
+	}
+	printf("\n");
 
 	/* Calc vector Sum */
 	for ( int i = 0 ; i < m_seProx->GetNumberOfInputs() ; i ++ )
@@ -286,11 +304,47 @@ void CIri1Controller::ObstacleAvoidance ( unsigned int un_priority )
 
 void CIri1Controller::Stop ( unsigned int un_priority )
 {
-  /* Direction Angle 0.0 and always active. We set its vector intensity to 0.5 if used */
-	m_fActivationTable[un_priority][0] = 0.0;
-	m_fActivationTable[un_priority][1] = 0.0;
-	m_fActivationTable[un_priority][2] = 1.0;
+    /* Leer Sensores de Suelo*/
+	double* ground = m_seGround->GetSensorReading(m_pcEpuck);
 
+	/* Leer Sensores de Luz Azul*/
+	double* bluelight = m_seBlueLight->GetSensorReading(m_pcEpuck);
+
+	double sumGround;
+	double sumBlueLight;
+
+	/* Sumar los valores del sensor de luz azul */
+	for ( int i = 0 ; i < m_seBlueLight->GetNumberOfInputs() ; i++ )
+	{
+		sumBlueLight += bluelight[i];
+	}
+
+	/* Sumar los valores del sensor del suelo */
+	for ( int i = 0 ; i < m_seGround->GetNumberOfInputs() ; i ++ )
+	{
+		sumGround += ground[i];
+	}
+
+	printf("Suma Valor Suelo: %2.4f %2.4f\n", sumGround, ground[0]);
+
+	/* Epsilon declarada para evitar cualquier problema que pueda tener c++ al comparar valores double que sean 0.0 ambos*/
+    double epsilon = 1e-9;
+	
+	/* Si esta sobre la alfombrilla negra descarga los platos, 
+	ademas si estan todas las luces azules apagadas se activa el flag */
+	if (sumGround < epsilon) {
+		num_Platos = 0;
+		if (sumBlueLight < epsilon){
+
+			printf("Esperando\n");
+			m_fActivationTable[un_priority][2] = 1.0;
+			m_pcEpuck->SetAllColoredLeds(	LED_COLOR_WHITE);
+		}
+
+	}
+
+	m_fActivationTable[un_priority][0] = STOP_SPEED;
+  	m_fActivationTable[un_priority][1] = STOP_SPEED;
 
 	//No para porque el coordinador mantiene el movimiento
 
@@ -355,12 +409,12 @@ void CIri1Controller::GoTable ( unsigned int un_priority )
 
 
   m_fActivationTable[un_priority][0] = fRepelent;
-  m_fActivationTable[un_priority][1] = fMaxLight;
+  m_fActivationTable[un_priority][1] = fMaxLight * 0.95;
 
 	/* If battery below a BATTERY_THRESHOLD */
-	if ( fMaxLight > 0 )
+	if ( fMaxLight > 0 && num_Platos < 3 )
 	{
-		/* Set Leds to RED */
+		/* Set Leds to BLUE */
 		m_pcEpuck->SetAllColoredLeds(	LED_COLOR_BLUE);
 		
 		/* Mark behavior as active */
@@ -372,9 +426,10 @@ void CIri1Controller::GoTable ( unsigned int un_priority )
 		sumBlueLight += bluelight[i];
 	}
 
-	if ( sumBlueLight > 1.75 ){	
+	if ( sumBlueLight > 1.67 ){	
 
 		m_seBlueLight->SwitchNearestLight(0);
+		num_Platos = num_Platos +1;
 	}	
 
 
@@ -411,6 +466,7 @@ void CIri1Controller::GoLoad ( unsigned int un_priority )
 	}
 	printf("\n");
 
+	printf(" BATTERY: %1.3f \n", battery[0]);
 
   /* We call vRepelent to go similar to Obstacle Avoidance, although it is an aproaching vector */
 	dVector2 vRepelent;
@@ -441,8 +497,8 @@ void CIri1Controller::GoLoad ( unsigned int un_priority )
 	/* If battery below a BATTERY_THRESHOLD */
 	if ( battery[0] < BATTERY_THRESHOLD )
 	{
-		/* Inibit Forage */
-		fBattToForageInhibitor = 0.0;
+		/* Inibit GoTable */
+		fBattToGoTableInhibitor = 0.0;
 
 		/* Set Leds to RED */
 		m_pcEpuck->SetAllColoredLeds(	LED_COLOR_RED);
@@ -468,13 +524,24 @@ void CIri1Controller::GoLoad ( unsigned int un_priority )
 /******************************************************************************/
 /******************************************************************************/
 
-void CIri1Controller::Forage ( unsigned int un_priority )
+void CIri1Controller::GoRest ( unsigned int un_priority )
 {
-	/* Leer Sensores de Suelo Memory */
-	double* groundMemory = m_seGroundMemory->GetSensorReading(m_pcEpuck);
 	
+	printf("Numero de Platos : %d \n", num_Platos);
+
 	/* Leer Sensores de Luz */
 	double* light = m_seLight->GetSensorReading(m_pcEpuck);
+
+	/* Leer Sensores de Luz Azul*/
+	double* bluelight = m_seBlueLight->GetSensorReading(m_pcEpuck);
+
+	double sumBlueLight = 0;
+
+	/* Sumar los valores del sensor de luz azul */
+	for ( int i = 0 ; i < m_seBlueLight->GetNumberOfInputs() ; i++ )
+	{
+		sumBlueLight += bluelight[i];
+	}
 	
 	double fMaxLight = 0.0;
 	const double* lightDirections = m_seLight->GetSensorDirections();
@@ -496,20 +563,21 @@ void CIri1Controller::Forage ( unsigned int un_priority )
 	
 	/* Calc pointing angle */
 	float fRepelent = atan2(vRepelent.y, vRepelent.x);
-	/* Create repelent angle */
-	//fRepelent -= M_PI;
 	
-  /* Normalize angle */
+    /* Normalize angle */
 	while ( fRepelent > M_PI ) fRepelent -= 2 * M_PI;
 	while ( fRepelent < -M_PI ) fRepelent += 2 * M_PI;
 
   m_fActivationTable[un_priority][0] = fRepelent;
-  m_fActivationTable[un_priority][1] = fMaxLight;
-  
-  /* If with a virtual puck */
-	if ( ( groundMemory[0] * fBattToForageInhibitor ) == 1.0 )
+  m_fActivationTable[un_priority][1] = fMaxLight * 0.95;
+	
+	/* Epsilon declarada para evitar cualquier problema que pueda tener c++ al comparar valores double que sean 0.0 ambos*/
+	double epsilon = 1e-9;
+
+  /* Si lleva mas de dos platos o no hay luces azules encendidas activa el flag */
+	if ( num_Platos > 2 || sumBlueLight < epsilon )
 	{
-		/* Set Leds to BLUE */
+		/* Set Leds to YELLOW */
 		m_pcEpuck->SetAllColoredLeds(	LED_COLOR_YELLOW);
     /* Mark Behavior as active */
     m_fActivationTable[un_priority][2] = 1.0;
@@ -520,7 +588,7 @@ void CIri1Controller::Forage ( unsigned int un_priority )
 	{
 		/* INIT WRITE TO FILE */
 		FILE* fileOutput = fopen("outputFiles/forageOutput", "a");
-		fprintf(fileOutput, "%2.4f %2.4f %2.4f %2.4f %2.4f %2.4f %2.4f %2.4f %2.4f %2.4f %2.4f ", m_fTime, fBattToForageInhibitor, groundMemory[0], light[0], light[1], light[2], light[3], light[4], light[5], light[6], light[7]);
+		fprintf(fileOutput, "%2.4f %2.4f %2.4f %2.4f %2.4f %2.4f %2.4f %2.4f %2.4f ", m_fTime, light[0], light[1], light[2], light[3], light[4], light[5], light[6], light[7]);
 		fprintf(fileOutput, "%2.4f %2.4f %2.4f\n",m_fActivationTable[un_priority][2], m_fActivationTable[un_priority][0], m_fActivationTable[un_priority][1]);
 		fclose(fileOutput);
 		/* END WRITE TO FILE */
