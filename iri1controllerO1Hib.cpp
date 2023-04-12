@@ -718,7 +718,7 @@ void CIri1Controller::Forage ( unsigned int un_priority )
 
 	/* Si lleva mas de dos platos o no hay luces azules encendidas activa el flag */
   /* If with a virtual puck */
-	if ( ( groundMemory[0] * fBattToForageInhibitor * fGoalToForageInhibitor * fGoTableToForargelInhibitor ) == 1.0 && (num_Platos > 2 || sumBlueLight < epsilon) )
+	if ( ( fGoalToForageInhibitor * fGoTableToForargelInhibitor ) == 1.0 && (num_Platos > 2 || sumBlueLight < epsilon) )
 	{
 		/* Set Leds to BLUE */
 		m_pcEpuck->SetAllColoredLeds(	LED_COLOR_YELLOW);
