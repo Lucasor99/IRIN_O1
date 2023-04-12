@@ -190,6 +190,7 @@ CIri1Controller::CIri1Controller (const char* pch_name, CEpuck* pc_epuck, int n_
   m_seEncoder->InitEncoderSensor(m_pcEpuck);
 
 	
+
 	/* Initialize Motor Variables */
 	m_fLeftSpeed  = 0.0;
 	m_fRightSpeed = 0.0;
@@ -545,6 +546,8 @@ void CIri1Controller::GoTable ( unsigned int un_priority )
 	}
 	printf("%2f ", fMaxLight);
 	printf("\n");
+  printf("%d ", num_Platos);
+  	printf("\n");
 
 	/* Calc pointing angle */
 	float fRepelent = atan2(vRepelent.y, vRepelent.x);
@@ -668,9 +671,20 @@ void CIri1Controller::Forage ( unsigned int un_priority )
 	
 	/* Leer Sensores de Luz */
 	double* light = m_seLight->GetSensorReading(m_pcEpuck);
+  /* Leer Sensores de Luz Azul*/
+	double *bluelight = m_seBlueLight->GetSensorReading(m_pcEpuck);
 	
 	double fMaxLight = 0.0;
 	const double* lightDirections = m_seLight->GetSensorDirections();
+
+  double sumBlueLight = 0;
+
+	/* Sumar los valores del sensor de luz azul */
+	for (int i = 0; i < m_seBlueLight->GetNumberOfInputs(); i++)
+	{
+		sumBlueLight += bluelight[i];
+	}
+
 
   /* We call vRepelent to go similar to Obstacle Avoidance, although it is an aproaching vector */
 	dVector2 vRepelent;
@@ -690,6 +704,7 @@ void CIri1Controller::Forage ( unsigned int un_priority )
 	/* Calc pointing angle */
 	float fRepelent = atan2(vRepelent.y, vRepelent.x);
 	
+
 	
   /* Normalize angle */
 	while ( fRepelent > M_PI ) fRepelent -= 2 * M_PI;
@@ -698,11 +713,15 @@ void CIri1Controller::Forage ( unsigned int un_priority )
   m_fActivationTable[un_priority][0] = fRepelent;
   m_fActivationTable[un_priority][1] = fMaxLight;
   
+  /* Epsilon declarada para evitar cualquier problema que pueda tener c++ al comparar valores double que sean 0.0 ambos*/
+	double epsilon = 1e-9;
+
+	/* Si lleva mas de dos platos o no hay luces azules encendidas activa el flag */
   /* If with a virtual puck */
-	if ( ( groundMemory[0] * fBattToForageInhibitor * fGoalToForageInhibitor * fGoTableToForargelInhibitor ) == 1.0 )
+	if ( ( groundMemory[0] * fBattToForageInhibitor * fGoalToForageInhibitor * fGoTableToForargelInhibitor ) == 1.0 && (num_Platos > 2 || sumBlueLight < epsilon) )
 	{
 		/* Set Leds to BLUE */
-		m_pcEpuck->SetAllColoredLeds(	LED_COLOR_BLUE);
+		m_pcEpuck->SetAllColoredLeds(	LED_COLOR_YELLOW);
     /* Mark Behavior as active */
     m_fActivationTable[un_priority][2] = 1.0;
 		
