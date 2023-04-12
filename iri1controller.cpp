@@ -210,6 +210,7 @@ void CIri1Controller::Coordinator ( void )
   /*Calc Angular Speed */
   double fVAngular = fAngle;
 
+ /* Si el flag de Stop esta activado se para el robot, sino la velocidad de sus ruedad es el resultado del sumatorio de las velocidades calculadas para flag activo excepto Stop */
   if (m_fActivationTable[STOP_PRIORITY][2] == 1.0){
 
 	printf("Behavior %d: %2f\n", STOP_PRIORITY, m_fActivationTable[STOP_PRIORITY][0]);
@@ -228,7 +229,7 @@ void CIri1Controller::Coordinator ( void )
 		/* INIT: WRITE TO FILES */
 		/* Write coordinator ouputs */
 		FILE* fileOutput = fopen("outputFiles/coordinatorOutput", "a");
-		fprintf(fileOutput,"%2.4f %d %2.4f %2.4f \n", m_fTime, nBehavior, m_fLeftSpeed, m_fRightSpeed);
+		fprintf(fileOutput,"%2.4f %2.4f %2.4f %2.4f %2.4f %2.4f \n", m_fTime, m_fActivationTable[AVOID_PRIORITY][2], m_fActivationTable[RELOAD_PRIORITY][2], m_fActivationTable[REST_PRIORITY][2], m_fActivationTable[TABLE_PRIORITY][2], m_fActivationTable[STOP_PRIORITY][2]);
 		fclose(fileOutput);
 		/* END WRITE TO FILES */
 	}
@@ -293,8 +294,8 @@ void CIri1Controller::ObstacleAvoidance ( unsigned int un_priority )
 		/* INIT WRITE TO FILE */
 		/* Write level of competence ouputs */
 		FILE* fileOutput = fopen("outputFiles/avoidOutput", "a");
-		fprintf(fileOutput, "%2.4f %2.4f %2.4f %2.4f %2.4f %2.4f %2.4f %2.4f %2.4f %2.4f %2.4f ", m_fTime, prox[0], prox[1], prox[2], prox[3], prox[4], prox[5], prox[6], prox[7], fMaxProx, fRepelent);
-		fprintf(fileOutput, "%2.4f %2.4f %2.4f\n",m_fActivationTable[un_priority][2], m_fActivationTable[un_priority][0], m_fActivationTable[un_priority][1]);
+		fprintf(fileOutput, "%2.4f %2.4f ", m_fTime, fMaxProx);
+		fprintf(fileOutput, "%2.4f\n",m_fActivationTable[un_priority][2]);
 		fclose(fileOutput);
 		/* END WRITE TO FILE */
 	}
@@ -303,7 +304,7 @@ void CIri1Controller::ObstacleAvoidance ( unsigned int un_priority )
 /******************************************************************************/
 /******************************************************************************/
 
-
+/* Este comportamiento hace que el robot se pare */
 void CIri1Controller::Stop ( unsigned int un_priority )
 {
     /* Leer Sensores de Suelo*/
@@ -348,14 +349,12 @@ void CIri1Controller::Stop ( unsigned int un_priority )
 	m_fActivationTable[un_priority][0] = STOP_SPEED;
   	m_fActivationTable[un_priority][1] = STOP_SPEED;
 
-	//No para porque el coordinador mantiene el movimiento
-
 	if (m_nWriteToFile ) 
 	{
 		/* INIT: WRITE TO FILES */
 		/* Write level of competence ouputs */
-		FILE* fileOutput = fopen("outputFiles/navigateOutput", "a");
-		fprintf(fileOutput,"%2.4f %2.4f %2.4f %2.4f \n", m_fTime, m_fActivationTable[un_priority][2], m_fActivationTable[un_priority][0], m_fActivationTable[un_priority][1]);
+		FILE* fileOutput = fopen("outputFiles/stopOutput", "a");
+		fprintf(fileOutput,"%2.4f %2.4f %2.4f %2.4f \n", m_fTime, m_fActivationTable[un_priority][2], sumGround, sumBlueLight);
 		fclose(fileOutput);
 		/* END WRITE TO FILES */
 	}
@@ -365,6 +364,7 @@ void CIri1Controller::Stop ( unsigned int un_priority )
 /******************************************************************************/
 /******************************************************************************/
 
+/* Este comportamiento hace que el robot vaya a las mesas en las que hay una luz encendida */
 void CIri1Controller::GoTable ( unsigned int un_priority )
 {
 	/* Leer Battery Sensores */
@@ -413,13 +413,13 @@ void CIri1Controller::GoTable ( unsigned int un_priority )
   m_fActivationTable[un_priority][0] = fRepelent;
   m_fActivationTable[un_priority][1] = fMaxLight * 0.95;
 
-	/* If battery below a BATTERY_THRESHOLD */
+	/* Si los sensores detectan luz azul y el robot tiene menos de tres platos activa el flag */
 	if ( fMaxLight > 0 && num_Platos < 3 )
 	{
 		/* Set Leds to BLUE */
 		m_pcEpuck->SetAllColoredLeds(	LED_COLOR_BLUE);
 		
-		/* Mark behavior as active */
+		/* Activa el flag, pero es dependera de si el inhibidor de la bateria esta activo o no */
 		m_fActivationTable[un_priority][2] = 1.0 * fBattToGoTableInhibitor;
 	}	
 
@@ -428,6 +428,7 @@ void CIri1Controller::GoTable ( unsigned int un_priority )
 		sumBlueLight += bluelight[i];
 	}
 
+	/* Si la suma de todos los sensores supera el umbral, apagara la luz, ademas anade un plato al contador de platos */
 	if ( sumBlueLight > 1.67 ){	
 
 		m_seBlueLight->SwitchNearestLight(0);
@@ -439,8 +440,8 @@ void CIri1Controller::GoTable ( unsigned int un_priority )
 	{
 		/* INIT WRITE TO FILE */
 		FILE* fileOutput = fopen("outputFiles/tableOutput", "a");
-		fprintf(fileOutput, "%2.4f %2.4f %2.4f %2.4f %2.4f %2.4f %2.4f %2.4f %2.4f %2.4f ", m_fTime, battery[0], bluelight[0], bluelight[1], bluelight[2], bluelight[3], bluelight[4], bluelight[5], bluelight[6], bluelight[7]);
-		fprintf(fileOutput, "%2.4f %2.4f %2.4f\n",m_fActivationTable[un_priority][2], m_fActivationTable[un_priority][0], m_fActivationTable[un_priority][1]);
+		fprintf(fileOutput, "%2.4f %2.4f %2.4f %d ", m_fTime, battery[0], sumBlueLight, num_Platos);
+		fprintf(fileOutput, "%2.4f \n",m_fActivationTable[un_priority][2]);
 		fclose(fileOutput);
 		/* END WRITE TO FILE */
 	}
@@ -450,6 +451,7 @@ void CIri1Controller::GoTable ( unsigned int un_priority )
 /******************************************************************************/
 /******************************************************************************/
 
+/* Este comportamiento hace que el robot vaya a cargar la bateria */
 void CIri1Controller::GoLoad ( unsigned int un_priority )
 {
 	/* Leer Battery Sensores */
@@ -526,6 +528,7 @@ void CIri1Controller::GoLoad ( unsigned int un_priority )
 /******************************************************************************/
 /******************************************************************************/
 
+/* Este comportamiento hace que el robot vaya al punto de descarga */
 void CIri1Controller::GoRest ( unsigned int un_priority )
 {
 	
@@ -589,9 +592,9 @@ void CIri1Controller::GoRest ( unsigned int un_priority )
 	if (m_nWriteToFile ) 
 	{
 		/* INIT WRITE TO FILE */
-		FILE* fileOutput = fopen("outputFiles/forageOutput", "a");
-		fprintf(fileOutput, "%2.4f %2.4f %2.4f %2.4f %2.4f %2.4f %2.4f %2.4f %2.4f ", m_fTime, light[0], light[1], light[2], light[3], light[4], light[5], light[6], light[7]);
-		fprintf(fileOutput, "%2.4f %2.4f %2.4f\n",m_fActivationTable[un_priority][2], m_fActivationTable[un_priority][0], m_fActivationTable[un_priority][1]);
+		FILE* fileOutput = fopen("outputFiles/gorestOutput", "a");
+		fprintf(fileOutput, "%2.4f %2.4f %d ", m_fTime, sumBlueLight, num_Platos);
+		fprintf(fileOutput, "%2.4f %2.4f %2.4f\n",m_fActivationTable[un_priority][2]);
 		fclose(fileOutput);
 		/* END WRITE TO FILE */
 	}

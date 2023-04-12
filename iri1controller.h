@@ -45,7 +45,6 @@ private:
 		double 		m_fRightSpeed;
 		double**	m_fActivationTable;
 		double 		m_fTime;
-		double		fBattToForageInhibitor;
 		double		fBattToGoTableInhibitor;
 		double		fStopInhibitor;
 		int			num_Platos;
