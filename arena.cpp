@@ -311,7 +311,7 @@ void CArena::SimulationStep(unsigned int n_step_number,
 			}
 		}
 
-		if (!bAtLeastOneOn && f_time - time >= 100) {
+		if (!bAtLeastOneOn && f_time - time >= 50) {
 			int iRandomIndex = rand() % m_vecBlueLightObject.size();
 			m_vecBlueLightObject[iRandomIndex]->Switch(true);
 			time = f_time;
