@@ -83,7 +83,6 @@ CIri1Controller::CIri1Controller (const char* pch_name, CEpuck* pc_epuck, int n_
 	m_fRightSpeed = 0.0;
 
 	fBattToGoTableInhibitor = 1.0;
-	fStopInhibitor = 0.0;
 	num_Platos = 0;
 
 
@@ -151,6 +150,9 @@ void CIri1Controller::ExecuteBehaviors ( void )
 	{
 		m_fActivationTable[i][2] = 0.0;
 	}
+
+	/* Release Inhibitors */
+	fBattToGoTableInhibitor = 1.0;
 	/* Set Leds to BLACK */
 	m_pcEpuck->SetAllColoredLeds(	LED_COLOR_BLACK);
 	
@@ -418,7 +420,7 @@ void CIri1Controller::GoTable ( unsigned int un_priority )
 		m_pcEpuck->SetAllColoredLeds(	LED_COLOR_BLUE);
 		
 		/* Mark behavior as active */
-		m_fActivationTable[un_priority][2] = 1.0;
+		m_fActivationTable[un_priority][2] = 1.0 * fBattToGoTableInhibitor;
 	}	
 
 	double sumBlueLight;
