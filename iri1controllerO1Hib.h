@@ -38,7 +38,7 @@ private:
 		double**	m_fActivationTable;
 		int 			m_nWriteToFile;
 		double 		m_fTime;
-    double    fBattToForageInhibitor;
+    double    fBattGoTableInhibitor;
     double    fGoalToForageInhibitor;
     double    fGoTableToGoalInhibitor;
     double    fGoTableToForargelInhibitor;

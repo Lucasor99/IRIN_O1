@@ -196,10 +196,10 @@ CIri1Controller::CIri1Controller (const char* pch_name, CEpuck* pc_epuck, int n_
 	m_fRightSpeed = 0.0;
 
   /* Initialize Inhibitors */
-  fBattToForageInhibitor = 1.0;
   fGoalToForageInhibitor = 1.0;
   fGoTableToGoalInhibitor = 1.0;
   fGoTableToForargelInhibitor = 1.0;
+  fBattGoTableInhibitor = 1.0;
 
   num_Platos = 0;
 
@@ -303,10 +303,10 @@ void CIri1Controller::ExecuteBehaviors ( void )
 	}
 
 	/* Release Inhibitors */
-	fBattToForageInhibitor = 1.0;
 	fGoalToForageInhibitor = 1.0;
   fGoTableToGoalInhibitor = 1.0;
   fGoTableToForargelInhibitor = 1.0;
+  fBattGoTableInhibitor = 1.0;
 	/* Set Leds to BLACK */
 	m_pcEpuck->SetAllColoredLeds(	LED_COLOR_BLACK);
 
@@ -569,7 +569,7 @@ void CIri1Controller::GoTable ( unsigned int un_priority )
 		m_pcEpuck->SetAllColoredLeds(	LED_COLOR_BLUE);
 		
 		/* Mark behavior as active */
-		m_fActivationTable[un_priority][2] = 1.0;
+		m_fActivationTable[un_priority][2] = 1.0 * fBattGoTableInhibitor;
 	}	
 
 	double sumBlueLight;
@@ -641,7 +641,7 @@ void CIri1Controller::GoLoad ( unsigned int un_priority )
 	if ( battery[0] < BATTERY_THRESHOLD )
 	{
     /* Inibit Forage */
-		fBattToForageInhibitor = 0.0;
+		fBattGoTableInhibitor = 0.0;
 		/* Set Leds to RED */
 		m_pcEpuck->SetAllColoredLeds(	LED_COLOR_RED);
 		
@@ -666,8 +666,6 @@ void CIri1Controller::GoLoad ( unsigned int un_priority )
 
 void CIri1Controller::Forage ( unsigned int un_priority )
 {
-	/* Leer Sensores de Suelo Memory */
-	double* groundMemory = m_seGroundMemory->GetSensorReading(m_pcEpuck);
 	
 	/* Leer Sensores de Luz */
 	double* light = m_seLight->GetSensorReading(m_pcEpuck);
@@ -730,7 +728,7 @@ void CIri1Controller::Forage ( unsigned int un_priority )
 	{
 		/* INIT WRITE TO FILE */
 		FILE* fileOutput = fopen("outputFiles/forageOutput", "a");
-		fprintf(fileOutput, "%2.4f %2.4f %2.4f %2.4f %2.4f %2.4f %2.4f %2.4f %2.4f %2.4f %2.4f ", m_fTime, fBattToForageInhibitor, groundMemory[0], light[0], light[1], light[2], light[3], light[4], light[5], light[6], light[7]);
+		fprintf(fileOutput, "%2.4f %2.4f %2.4f %2.4f %2.4f %2.4f %2.4f %2.4f %2.4f %2.4f ", m_fTime, fBattGoTableInhibitor, light[0], light[1], light[2], light[3], light[4], light[5], light[6], light[7]);
 		fprintf(fileOutput, "%2.4f %2.4f %2.4f\n",m_fActivationTable[un_priority][2], m_fActivationTable[un_priority][0], m_fActivationTable[un_priority][1]);
 		fclose(fileOutput);
 		/* END WRITE TO FILE */
@@ -772,13 +770,16 @@ void CIri1Controller::ComputeActualCell ( unsigned int un_priority )
   printf("GRID: X: %d, %d\n", m_nRobotActualGridX, m_nRobotActualGridY);
   /* DEBUG */
   
+  /* Epsilon declarada para evitar cualquier problema que pueda tener c++ al comparar valores double que sean 0.0 ambos*/
+    double epsilon = 1e-9;
+
   /* Update no-obstacles on map */
   if (  onlineMap[m_nRobotActualGridX][m_nRobotActualGridY] != NEST &&
         onlineMap[m_nRobotActualGridX][m_nRobotActualGridY] != PREY )
     onlineMap[m_nRobotActualGridX][m_nRobotActualGridY] = NO_OBSTACLE;
  
   /* If looking for nest and arrived to nest */
-  if ( m_nForageStatus == 1 && groundMemory[0] == 0)
+  if ( m_nForageStatus == 1 && groundMemory[0] < epsilon)
   {
     /* update forage status */
     m_nForageStatus = 0;
@@ -799,7 +800,7 @@ void CIri1Controller::ComputeActualCell ( unsigned int un_priority )
   }//end looking for nest
   
   /* If looking for prey and prey graspped */
-  else if ( m_nForageStatus == 0 && groundMemory[0] == 1)
+  else if ( m_nForageStatus == 0 && groundMemory[0] == 1.0)
   {
     /* Update forage Status */
     m_nForageStatus = 1;
@@ -1024,7 +1025,7 @@ void CIri1Controller::PathPlanning ( unsigned int un_priority )
 void CIri1Controller::GoGoal ( unsigned int un_priority )
 {
 
-  if ( ((m_nNestFound * fBattToForageInhibitor * fGoTableToGoalInhibitor) == 1 ) && ( (m_nPreyFound *  fBattToForageInhibitor )== 1 ) )
+  if ( ((m_nNestFound * fBattGoTableInhibitor * fGoTableToGoalInhibitor) == 1 ) && ( (m_nPreyFound *  fBattGoTableInhibitor) == 1 ) )
   { 
     /* Enable Inhibitor to Forage */
     fGoalToForageInhibitor = 0.0;
