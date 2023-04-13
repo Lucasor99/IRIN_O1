@@ -43,8 +43,8 @@ const int mapGridX          = 20;
 const int mapGridY          = 20;
 double    mapLengthX        = 3.0;
 double    mapLengthY        = 3.0;
-int       robotStartGridX   = 17; 
-int       robotStartGridY   = 17;
+int       robotStartGridX   = 18; 
+int       robotStartGridY   = 18;
 
 const   int n=mapGridX; // horizontal size of the map
 const   int m=mapGridY; // vertical size size of the map
